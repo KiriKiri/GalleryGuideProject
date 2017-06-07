@@ -8,8 +8,6 @@
 
 import UIKit
 
-//Added comment for git
-
 class DetailsViewController: UIViewController {
     
     @IBOutlet weak var nameLabel: UILabel!
