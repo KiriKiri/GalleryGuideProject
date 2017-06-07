@@ -25,7 +25,7 @@ class DataLoader {
     
     func loadExhibitions() -> [ExhibitionVO]  {
         
-        let galleries = loadGalleries()
+        let galleries = loadEvents()
         
         var result:[ExhibitionVO] = []
         
@@ -67,7 +67,7 @@ class DataLoader {
         return result
     }
     
-    private func loadGalleries() -> [String: GalleryVO] {
+    private func loadEvents() -> [String: GalleryVO] {
         
         var result:[String: GalleryVO] = [:]
         
