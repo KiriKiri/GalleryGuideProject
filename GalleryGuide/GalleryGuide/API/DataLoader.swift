@@ -21,83 +21,97 @@ extension Date {
     }
 }
 
+protocol Parsable {
+    init?(jsonDictionary: [String: Any])
+}
+
+extension ExhibitionVO: Parsable {
+    
+    init?(jsonDictionary: [String: Any])  {
+        guard let name = jsonDictionary["name"] as? String else {
+            return nil
+        }
+        
+        self.name = name
+        self.id = jsonDictionary["_id"] as? String
+        self.about = jsonDictionary["about"] as? String
+        self.authorName = jsonDictionary["authorName"] as? String
+        self.authorDescription = jsonDictionary["authorDescription"] as? String
+        self.startDate = Date.from(string: jsonDictionary["dateStart"] as? String)
+        self.endDate = Date.from(string: jsonDictionary["dateEnd"] as? String)
+        self.gallery = nil
+    }
+}
+
+extension GalleryVO: Parsable {
+    init?(jsonDictionary: [String: Any])  {
+        guard let name = jsonDictionary["name"] as? String else {
+            return nil
+        }
+        
+        guard let id = jsonDictionary["_id"] as? String else {
+            return nil
+        }
+        
+        self.id = id
+        self.name = name
+        self.galleryDescription = jsonDictionary["galleryDescription"] as? String
+        self.email = jsonDictionary["email"] as? String
+        self.facebook = jsonDictionary["facebook"] as? String
+        self.city = jsonDictionary["city"] as? String
+    }
+}
+
 class DataLoader {
+    
+    func loadJSONArray(with filename: String) -> [[String: Any]]? {
+        
+        guard let url = Bundle.main.url(forResource: filename, withExtension: "json") else {
+            return nil
+        }
+        
+        guard let rawData = try? Data(contentsOf: url) else {
+            return nil
+        }
+        
+        guard let rawArray = try? JSONSerialization.jsonObject(with: rawData) as? [[String: Any]] else {
+            return nil
+        }
+        
+        return rawArray
+    }
     
     func loadExhibitions() -> [ExhibitionVO]  {
         
-        let galleries = loadGalleries()
+        var galleries:[String: GalleryVO] = [:]
+        var exhibitions:[ExhibitionVO] = []
         
-        var result:[ExhibitionVO] = []
-        
-        guard let url = Bundle.main.url(forResource: "exhibitions", withExtension: "json") else {
-            return result
+        load(filename: "galleries") { (item: GalleryVO, json) in
+            galleries[item.id] = item
         }
-        
-        guard let exhibitionsRawData = try? Data(contentsOf: url) else {
-            return result
+            
+        load(filename: "exhibitions") { (item: ExhibitionVO, json) in
+            let galleryPointer = json["_p_gallery"] as? String
+            let galleryId = galleryPointer?.components(separatedBy: "$").last
+
+            var exhibition = item
+            if galleryId != nil {
+                exhibition.gallery = galleries[galleryId!]
+            }
+            
+            exhibitions.append(exhibition)
         }
-        
-        guard let exhibitionsRawArray = try? JSONSerialization.jsonObject(with: exhibitionsRawData) as? [[String: Any]] else {
-            return result
-        }
-        
-        if let array = exhibitionsRawArray {
-            for exhibitionDictionary in array {
-                
-                var galleryID:String = exhibitionDictionary["_p_gallery"] as! String
-                galleryID = galleryID.components(separatedBy: "$").last!
-                
-                if let gallery = galleries[galleryID] {
-                    
-                    let exhibition = ExhibitionVO(
-                        id: exhibitionDictionary["_id"] as? String,
-                        name: exhibitionDictionary["name"] as! String,
-                        about: exhibitionDictionary["about"] as? String,
-                        authorName: exhibitionDictionary["authorName"] as? String,
-                        authorDescription: exhibitionDictionary["authorDescription"] as? String,
-                        startDate: Date.from(string: exhibitionDictionary["dateStart"] as? String),
-                        endDate: Date.from(string: exhibitionDictionary["dateEnd"] as? String),
-                        gallery: gallery)
-                
-                    result.append(exhibition)
+
+        return exhibitions
+    }
+    
+    private func load<T: Parsable>(filename: String, iterationHandler:((_ item: T,_ rawJSON:[String: Any])->())) {
+        if let array = loadJSONArray(with: filename) {
+            for item in array {
+                if let parsedItem = T(jsonDictionary: item) {
+                    iterationHandler(parsedItem, item)
                 }
             }
         }
-        
-        return result
-    }
-    
-    private func loadGalleries() -> [String: GalleryVO] {
-        
-        var result:[String: GalleryVO] = [:]
-        
-        guard let url = Bundle.main.url(forResource: "galleries", withExtension: "json") else {
-            return result
-        }
-        
-        guard let galleriesRawData = try? Data(contentsOf: url) else {
-            return result
-        }
-        
-        guard let galleriesRawArray = try? JSONSerialization.jsonObject(with: galleriesRawData) as? [[String: Any]] else {
-            return result
-        }
-        
-        if let array = galleriesRawArray {
-            for galleryDictionary in array {
-                
-                let gallery = GalleryVO(
-                    id: galleryDictionary["_id"] as! String,
-                    name: galleryDictionary["name"] as! String,
-                    galleryDescription: galleryDictionary["galleryDescription"] as? String,
-                    email: galleryDictionary["email"] as? String,
-                    facebook: galleryDictionary["facebook"] as? String,
-                    city: galleryDictionary["city"] as? String)
-                
-                result[gallery.id] = gallery
-            }
-        }
-        
-        return result
     }
 }
